@@ -4,6 +4,8 @@
 
 [![MITRE ATT&CK TA0043](https://img.shields.io/badge/MITRE%20ATT%26CK-TA0043%20Reconnaissance-red)](https://attack.mitre.org/tactics/TA0043/)
 [![CI](https://github.com/JMarchiori13/osint-recon/actions/workflows/ci.yml/badge.svg)](https://github.com/JMarchiori13/osint-recon/actions/workflows/ci.yml)
+[![crates.io](https://img.shields.io/crates/v/osint-recon.svg)](https://crates.io/crates/osint-recon)
+[![docs.rs](https://docs.rs/osint-recon/badge.svg)](https://docs.rs/osint-recon)
 [![Rust](https://img.shields.io/badge/rust-1.95%2B-orange?logo=rust)](https://www.rust-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
