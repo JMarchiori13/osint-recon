@@ -26,6 +26,28 @@ console and CSV export.
 | Output fields | `records.<TYPE>[]` as `"name -> data"` strings, `errors[]` |
 | Limitations | Answers reflect Google's resolver view (CDN anycast means IPs vary by vantage point). No AXFR, no reverse sweeps, no queries against the target's authoritative servers. |
 
+## `asn` — ASN & netblock enumeration
+
+| | |
+|---|---|
+| Source | Team Cymru DNS whois (`origin.asn.cymru.com` / `asn.cymru.com` TXT records) queried via dns.google DoH |
+| API keys | none |
+| ATT&CK | T1590.001 (Domain Properties), T1590.005 (IP Addresses) |
+| Input | domain (A records resolved via DoH first) or bare IPv4 address |
+| Output fields | `mappings[]` (ip, asn, as_name, prefix, country, registry), `unique_asns[]`, `errors[]` |
+| Source rationale | Team Cymru's mapping is plain DNS, so it reuses the existing DoH resolver path — no new HTTP dependency and high reliability. RIPEstat's REST API (`stat.ripe.net/data/prefix-overview`) was the alternative; it is equally passive but returns heavier payloads and has occasional coverage gaps, so the DNS path is preferred. |
+| Limitations | IPv4 only (no IPv6 origin lookups yet). Team Cymru has no data for a small number of legacy blocks — those IPs are reported as "no origin data" rather than failing the run. AS names depend on Cymru's registry data and may lag renames. |
+
+## `ct` — certificate transparency history
+
+| | |
+|---|---|
+| Source | crt.sh JSON API (shared fetch helper with the `subdomain` module) |
+| API keys | none |
+| ATT&CK | T1596.003 (Search Open Technical Databases: Digital Certificates), T1590.001 |
+| Output fields | `total_certificates`, `unique_issuers[]` (CA short names from the issuer DN), `unique_san_names`, `earliest_not_before`, `latest_not_after`, `expiring_soon[]` (name, not_after, days_left; <30 days) |
+| Limitations | crt.sh rate-limits aggressively — transient failures retry with backoff and degrade gracefully. Historical entries include expired/revoked certs by design (it is a *history* view). Issuer labels are the CN of the issuer DN, so CA rebrands appear as distinct issuers. |
+
 ## `tech` — technology fingerprinting
 
 | | |

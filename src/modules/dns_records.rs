@@ -28,6 +28,17 @@ struct DohResponse {
 
 const RECORD_TYPES: &[&str] = &["A", "AAAA", "MX", "NS", "TXT"];
 
+/// Resolve `name` for `rtype` via dns.google and return the raw answer data.
+///
+/// Shared with other modules (e.g. ASN enumeration) that need DoH answers.
+pub(crate) fn resolve(client: &HttpClient, name: &str, rtype: &str) -> Result<Vec<String>> {
+    let url = format!("https://dns.google/resolve?name={name}&type={rtype}");
+    let resp: DohResponse = client
+        .get_json(&url)
+        .with_context(|| format!("DoH lookup failed for {name} {rtype}"))?;
+    Ok(resp.answer.into_iter().map(|a| a.data).collect())
+}
+
 /// Look up a single record type via dns.google.
 fn lookup(client: &HttpClient, domain: &str, rtype: &str) -> Result<Vec<String>> {
     let url = format!("https://dns.google/resolve?name={domain}&type={rtype}");

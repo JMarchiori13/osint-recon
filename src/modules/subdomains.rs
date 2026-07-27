@@ -11,23 +11,15 @@ use std::collections::BTreeSet;
 
 use anyhow::{Context, Result};
 use colored::Colorize;
-use serde::Deserialize;
 use serde_json::json;
 
 use crate::http::HttpClient;
+use crate::modules::crtsh;
 use crate::output::ModuleOutput;
-
-#[derive(Debug, Deserialize)]
-struct CrtShEntry {
-    name_value: String,
-}
 
 /// Query crt.sh for certificate transparency entries covering `*.<domain>`.
 fn from_crtsh(client: &HttpClient, domain: &str) -> Result<Vec<String>> {
-    let url = format!("https://crt.sh/?q=%25.{domain}&output=json");
-    let entries: Vec<CrtShEntry> = client
-        .get_json(&url)
-        .with_context(|| format!("crt.sh query failed for {domain}"))?;
+    let entries = crtsh::fetch(client, domain)?;
 
     let mut names = Vec::new();
     for entry in entries {

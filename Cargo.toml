@@ -1,6 +1,6 @@
 [package]
 name = "osint-recon"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Passive OSINT reconnaissance framework for authorized red team engagements"
 license = "MIT"
@@ -8,6 +8,7 @@ repository = "https://github.com/JMarchiori13/osint-recon"
 
 [dependencies]
 anyhow = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
 clap = { version = "4", features = ["derive"] }
 colored = "2"
 regex = "1"

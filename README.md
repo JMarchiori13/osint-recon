@@ -3,6 +3,7 @@
 **Passive OSINT reconnaissance framework in Rust for authorized red team engagements.**
 
 [![MITRE ATT&CK TA0043](https://img.shields.io/badge/MITRE%20ATT%26CK-TA0043%20Reconnaissance-red)](https://attack.mitre.org/tactics/TA0043/)
+[![CI](https://github.com/JMarchiori13/osint-recon/actions/workflows/ci.yml/badge.svg)](https://github.com/JMarchiori13/osint-recon/actions/workflows/ci.yml)
 [![Rust](https://img.shields.io/badge/rust-1.95%2B-orange?logo=rust)](https://www.rust-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
@@ -33,6 +34,8 @@ and CSV.
 
 - 🔎 **Subdomain enumeration** from certificate transparency (crt.sh) and DNS-history aggregators (hackertarget) — keyless, passive
 - 🌐 **DNS records** (A, AAAA, MX, NS, TXT) via DNS-over-HTTPS (dns.google) without touching the target's nameservers
+- 🗺️ **ASN & netblock enumeration** via Team Cymru DNS whois over DoH — IP→ASN, AS name, announced prefix
+- 📜 **Certificate transparency history** — aggregated crt.sh view: issuers, validity windows, certs expiring in <30 days
 - 🧬 **Technology fingerprinting** from response headers, meta generator tags and CMS/framework signatures
 - 📧 **Email harvesting** from pages the organization itself publishes, labeled for authorized phishing-simulation planning
 - 📄 **PDF metadata extraction** (author, creator tool, dates) from publicly linked documents
@@ -77,6 +80,13 @@ osint-recon email example.com
 # Metadata from publicly linked PDFs
 osint-recon metadata example.com
 
+# ASN & netblock enumeration (domain or bare IPv4)
+osint-recon asn example.com
+osint-recon asn 193.0.11.51
+
+# Certificate transparency history summary
+osint-recon ct example.com
+
 # Everything at once, exported
 osint-recon full example.com --json output/full.json
 osint-recon dns example.com --csv output/dns.csv
@@ -99,6 +109,8 @@ Global options:
 |--------|---------|------------------------|
 | `subdomain` | crt.sh, hackertarget hostsearch | T1590.001 — Domain Properties |
 | `dns` | dns.google DoH JSON API | T1590.002 — DNS |
+| `asn` | Team Cymru DNS whois (via DoH) | T1590.001 / T1590.005 — Domain Properties / IP Addresses |
+| `ct` | crt.sh certificate transparency logs | T1596.003 — Search Open Technical Databases: Digital Certificates |
 | `tech` | homepage headers + HTML signatures | T1592.002 — Software |
 | `email` | public pages (bounded link following) | T1589.002 — Email Addresses, T1593.002 |
 | `metadata` | publicly linked PDFs (lopdf Info dict) | T1593.002 — Search Open Websites/Domains |
@@ -124,8 +136,8 @@ methodology and OPSEC notes. Safe practice targets are documented in
 
 ## Roadmap
 
-- [ ] ASN & netblock enumeration (passive, via public BGP/RIR data)
-- [ ] Certificate transparency history & expiring-cert monitoring
+- [x] ASN & netblock enumeration (passive, via public BGP/RIR data) — shipped in v0.2.0
+- [x] Certificate transparency history & expiring-cert monitoring — shipped in v0.2.0
 - [ ] GitHub dorking module (code-search aggregators, keyless where possible)
 - [ ] Shodan API integration (key-based, passive host profiles)
 
@@ -134,14 +146,19 @@ methodology and OPSEC notes. Safe practice targets are documented in
 ```
 osint-recon/
 ├── Cargo.toml
+├── .github/workflows/
+│   └── ci.yml                  # fmt / clippy -D warnings / test / release build
 ├── src/
-│   ├── main.rs                 # clap CLI: subdomain/dns/tech/email/metadata/full
+│   ├── main.rs                 # clap CLI: subdomain/dns/asn/ct/tech/email/metadata/full
 │   ├── http.rs                 # shared client: UA rotation, timeout, retry, 1 req/s throttle
 │   ├── output.rs               # JSON + CSV export, formatted console tables
 │   └── modules/
 │       ├── mod.rs
+│       ├── crtsh.rs            # shared crt.sh CT-log fetch helper
 │       ├── subdomains.rs       # crt.sh + hackertarget (keyless passive sources)
 │       ├── dns_records.rs      # DNS-over-HTTPS via dns.google (A/AAAA/MX/NS/TXT)
+│       ├── asn.rs              # Team Cymru DNS whois over DoH (IP→ASN, prefix, AS name)
+│       ├── ct_history.rs       # crt.sh aggregate: issuers, validity, expiring certs
 │       ├── tech_fingerprint.rs # headers + meta generator + CMS/framework signatures
 │       ├── emails.rs           # regex harvest from the domain's public pages
 │       └── doc_metadata.rs     # public PDF links → Info-dict metadata via lopdf

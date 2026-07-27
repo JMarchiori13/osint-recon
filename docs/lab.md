@@ -12,6 +12,8 @@ documentation. They are the canonical smoke-test targets:
 osint-recon dns example.com
 osint-recon tech example.com
 osint-recon subdomain example.com
+osint-recon asn example.com
+osint-recon ct example.com
 osint-recon email example.com
 osint-recon metadata example.com
 osint-recon full example.com --json output/example.json

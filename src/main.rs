@@ -84,6 +84,16 @@ enum Commands {
         /// Target domain (e.g. example.com).
         domain: String,
     },
+    /// ASN & netblock enumeration (Team Cymru DNS whois over DoH).
+    Asn {
+        /// Target domain or IPv4 address (e.g. example.com or 93.184.215.14).
+        target: String,
+    },
+    /// Certificate transparency history summary (crt.sh).
+    Ct {
+        /// Target domain (e.g. example.com).
+        domain: String,
+    },
     /// Run all modules against the target.
     Full {
         /// Target domain (e.g. example.com).
@@ -202,11 +212,27 @@ fn main() -> Result<()> {
             let d = normalize_domain(domain)?;
             vec![modules::doc_metadata::run(&client, &d)]
         }
+        Commands::Asn { target } => {
+            let t = target.trim().trim_end_matches('/').to_lowercase();
+            // Accept a bare IPv4 address directly; otherwise validate as domain.
+            let t = if t.parse::<std::net::Ipv4Addr>().is_ok() {
+                t
+            } else {
+                normalize_domain(&t)?
+            };
+            vec![modules::asn::run(&client, &t)]
+        }
+        Commands::Ct { domain } => {
+            let d = normalize_domain(domain)?;
+            vec![modules::ct_history::run(&client, &d)]
+        }
         Commands::Full { domain } => {
             let d = normalize_domain(domain)?;
             vec![
                 modules::subdomains::run(&client, &d),
                 modules::dns_records::run(&client, &d),
+                modules::asn::run(&client, &d),
+                modules::ct_history::run(&client, &d),
                 modules::tech_fingerprint::run(&client, &d),
                 modules::emails::run(&client, &d),
                 modules::doc_metadata::run(&client, &d),
