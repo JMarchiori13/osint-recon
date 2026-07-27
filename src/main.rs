@@ -94,6 +94,11 @@ enum Commands {
         /// Target domain (e.g. example.com).
         domain: String,
     },
+    /// GitHub dorking: public exposure search via the GitHub REST API.
+    Ghdork {
+        /// Target domain (e.g. example.com).
+        domain: String,
+    },
     /// Run all modules against the target.
     Full {
         /// Target domain (e.g. example.com).
@@ -226,6 +231,10 @@ fn main() -> Result<()> {
             let d = normalize_domain(domain)?;
             vec![modules::ct_history::run(&client, &d)]
         }
+        Commands::Ghdork { domain } => {
+            let d = normalize_domain(domain)?;
+            vec![modules::github_dorks::run(&client, &d)]
+        }
         Commands::Full { domain } => {
             let d = normalize_domain(domain)?;
             vec![
@@ -233,6 +242,7 @@ fn main() -> Result<()> {
                 modules::dns_records::run(&client, &d),
                 modules::asn::run(&client, &d),
                 modules::ct_history::run(&client, &d),
+                modules::github_dorks::run(&client, &d),
                 modules::tech_fingerprint::run(&client, &d),
                 modules::emails::run(&client, &d),
                 modules::doc_metadata::run(&client, &d),

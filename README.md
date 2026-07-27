@@ -36,6 +36,7 @@ and CSV.
 - 🌐 **DNS records** (A, AAAA, MX, NS, TXT) via DNS-over-HTTPS (dns.google) without touching the target's nameservers
 - 🗺️ **ASN & netblock enumeration** via Team Cymru DNS whois over DoH — IP→ASN, AS name, announced prefix
 - 📜 **Certificate transparency history** — aggregated crt.sh view: issuers, validity windows, certs expiring in <30 days
+- 🐙 **GitHub dorking** — repos/users mentioning the domain keyless; optional token tier adds code-search dorks (`.env`, configs, `password`/`api_key`)
 - 🧬 **Technology fingerprinting** from response headers, meta generator tags and CMS/framework signatures
 - 📧 **Email harvesting** from pages the organization itself publishes, labeled for authorized phishing-simulation planning
 - 📄 **PDF metadata extraction** (author, creator tool, dates) from publicly linked documents
@@ -87,6 +88,10 @@ osint-recon asn 193.0.11.51
 # Certificate transparency history summary
 osint-recon ct example.com
 
+# GitHub dorking (keyless: repos + users; with token: + code-search dorks)
+osint-recon ghdork example.com
+OSINT_RECON_GITHUB_TOKEN=ghp_... osint-recon ghdork example.com
+
 # Everything at once, exported
 osint-recon full example.com --json output/full.json
 osint-recon dns example.com --csv output/dns.csv
@@ -111,6 +116,7 @@ Global options:
 | `dns` | dns.google DoH JSON API | T1590.002 — DNS |
 | `asn` | Team Cymru DNS whois (via DoH) | T1590.001 / T1590.005 — Domain Properties / IP Addresses |
 | `ct` | crt.sh certificate transparency logs | T1596.003 — Search Open Technical Databases: Digital Certificates |
+| `ghdork` | GitHub REST search API (keyless + optional token tier) | T1593.003 — Search Open Websites/Domains: Code Repositories |
 | `tech` | homepage headers + HTML signatures | T1592.002 — Software |
 | `email` | public pages (bounded link following) | T1589.002 — Email Addresses, T1593.002 |
 | `metadata` | publicly linked PDFs (lopdf Info dict) | T1593.002 — Search Open Websites/Domains |
@@ -138,7 +144,7 @@ methodology and OPSEC notes. Safe practice targets are documented in
 
 - [x] ASN & netblock enumeration (passive, via public BGP/RIR data) — shipped in v0.2.0
 - [x] Certificate transparency history & expiring-cert monitoring — shipped in v0.2.0
-- [ ] GitHub dorking module (code-search aggregators, keyless where possible)
+- [x] GitHub dorking module (code-search aggregators, keyless where possible) — shipped in v0.3.0
 - [ ] Shodan API integration (key-based, passive host profiles)
 
 ## Project structure
@@ -149,7 +155,7 @@ osint-recon/
 ├── .github/workflows/
 │   └── ci.yml                  # fmt / clippy -D warnings / test / release build
 ├── src/
-│   ├── main.rs                 # clap CLI: subdomain/dns/asn/ct/tech/email/metadata/full
+│   ├── main.rs                 # clap CLI: subdomain/dns/asn/ct/ghdork/tech/email/metadata/full
 │   ├── http.rs                 # shared client: UA rotation, timeout, retry, 1 req/s throttle
 │   ├── output.rs               # JSON + CSV export, formatted console tables
 │   └── modules/
@@ -159,6 +165,7 @@ osint-recon/
 │       ├── dns_records.rs      # DNS-over-HTTPS via dns.google (A/AAAA/MX/NS/TXT)
 │       ├── asn.rs              # Team Cymru DNS whois over DoH (IP→ASN, prefix, AS name)
 │       ├── ct_history.rs       # crt.sh aggregate: issuers, validity, expiring certs
+│       ├── github_dorks.rs     # GitHub REST search: repos/users keyless, code dorks w/ token
 │       ├── tech_fingerprint.rs # headers + meta generator + CMS/framework signatures
 │       ├── emails.rs           # regex harvest from the domain's public pages
 │       └── doc_metadata.rs     # public PDF links → Info-dict metadata via lopdf

@@ -10,5 +10,6 @@ pub mod ct_history;
 pub mod dns_records;
 pub mod doc_metadata;
 pub mod emails;
+pub mod github_dorks;
 pub mod subdomains;
 pub mod tech_fingerprint;

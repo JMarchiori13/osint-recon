@@ -87,6 +87,14 @@ impl HttpClient {
 
     /// Perform a GET request with throttling, UA rotation and bounded retries.
     pub fn get(&self, url: &str) -> Result<Response> {
+        self.get_with_headers(url, &[])
+    }
+
+    /// Perform a GET request with additional caller-supplied headers.
+    ///
+    /// Extra headers are applied on top of the rotating user-agent; invalid
+    /// header names/values are skipped. Header values are never logged.
+    pub fn get_with_headers(&self, url: &str, extra_headers: &[(&str, &str)]) -> Result<Response> {
         let mut last_err: Option<anyhow::Error> = None;
 
         for attempt in 0..=self.retries {
@@ -99,7 +107,14 @@ impl HttpClient {
                 HeaderValue::from_static("text/html,application/json,*/*;q=0.8"),
             );
 
-            match self.client.get(url).headers(headers).send() {
+            let mut request = self.client.get(url).headers(headers);
+            for (name, value) in extra_headers {
+                if let Ok(val) = HeaderValue::from_str(value) {
+                    request = request.header(*name, val);
+                }
+            }
+
+            match request.send() {
                 Ok(resp) => return Ok(resp),
                 Err(e) => {
                     if attempt < self.retries {

@@ -48,6 +48,18 @@ console and CSV export.
 | Output fields | `total_certificates`, `unique_issuers[]` (CA short names from the issuer DN), `unique_san_names`, `earliest_not_before`, `latest_not_after`, `expiring_soon[]` (name, not_after, days_left; <30 days) |
 | Limitations | crt.sh rate-limits aggressively — transient failures retry with backoff and degrade gracefully. Historical entries include expired/revoked certs by design (it is a *history* view). Issuer labels are the CN of the issuer DN, so CA rebrands appear as distinct issuers. |
 
+## `ghdork` — GitHub dorking (public exposure search)
+
+| | |
+|---|---|
+| Source | GitHub REST search API (`api.github.com/search/repositories`, `/search/users`, `/search/code`) |
+| API keys | keyless tier works out of the box (~10 req/min); optional token tier via `OSINT_RECON_GITHUB_TOKEN` (fallback `GITHUB_TOKEN`) unlocks `search/code`. A read-only classic token from <https://github.com/settings/tokens> is sufficient. |
+| ATT&CK | T1593.003 (Search Open Websites/Domains: Code Repositories) |
+| Keyless tier | repos mentioning the domain (name, owner, stars, last push, description) + users/orgs associated |
+| Token tier | code-search dorks from the `CODE_DORKS` table in `src/modules/github_dorks.rs`: `"<domain>" filename:.env`, `filename:config.json`, `filename:config.yml`, `password`, `api_key` — file path, repo, URL (extend the const to add dorks) |
+| Output fields | `repositories[]`, `users[]`, `code_findings[]`, `total_hits{}` (per-endpoint GitHub `total_count`), `code_dorks_run[]`, `token_tier`, `errors[]` |
+| Limitations | Unauthenticated search rate limit is strict (~10 req/min) — 403/429 responses are caught and warned with the reset time from `X-RateLimit-Reset`. Common documentation domains (e.g. `example.com`) produce heavy noise in code search; triage findings against the engagement scope. Results are leads for the report — never validate exposed secrets. The token is read from the environment only, never logged or written to exports. |
+
 ## `tech` — technology fingerprinting
 
 | | |
