@@ -108,6 +108,20 @@ limitations, and [docs/methodology.md](docs/methodology.md) for the full
 methodology and OPSEC notes. Safe practice targets are documented in
 [docs/lab.md](docs/lab.md).
 
+## Visualizations
+
+<p align="center">
+  <img src="docs/assets/attack-matrix.png" alt="ATT&CK technique coverage — Recon (TA0043)" width="90%">
+</p>
+
+<p align="center">
+  <img src="docs/assets/module-sources.png" alt="Passive data sources per module" width="70%">
+</p>
+
+<p align="center">
+  <img src="docs/assets/roadmap-status.png" alt="Roadmap status" width="45%">
+</p>
+
 ## Roadmap
 
 - [ ] ASN & netblock enumeration (passive, via public BGP/RIR data)
