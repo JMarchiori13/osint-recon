@@ -79,13 +79,14 @@ jobs:
       - name: Generate sha256 checksums
         run: |
           cd dist
-          mv */*.zip */*.tar.gz .
-          rmdir */ || true
+          mkdir -p flat
+          find . -mindepth 2 -type f \( -name '*.zip' -o -name '*.tar.gz' \) -exec mv {} flat/ \;
+          cd flat
           sha256sum *.zip *.tar.gz > checksums-sha256.txt
           ls -la
 
       - name: Create release and upload assets
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*
+          files: dist/flat/*
           generate_release_notes: true
