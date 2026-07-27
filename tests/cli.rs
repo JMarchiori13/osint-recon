@@ -41,6 +41,35 @@ fn rejects_invalid_domain_gracefully() {
 }
 
 #[test]
+fn stdout_mode_sends_banner_to_stderr() {
+    let out = bin()
+        .args(["--stdout", "dns", "invalid domain"])
+        .output()
+        .expect("run dns --stdout");
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        !stdout.contains("For authorized security assessments only."),
+        "banner must not pollute stdout in --stdout mode"
+    );
+    assert!(
+        stderr.contains("For authorized security assessments only."),
+        "banner should move to stderr in --stdout mode"
+    );
+}
+
+#[test]
+fn stdin_dash_with_empty_input_errors_cleanly() {
+    let out = bin()
+        .args(["--quiet", "dns", "-"])
+        .output() // stdin is null → immediate EOF
+        .expect("run dns -");
+    assert!(!out.status.success());
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("no targets on stdin"));
+}
+
+#[test]
 fn subcommand_help_works() {
     let out = bin()
         .args(["full", "--help"])

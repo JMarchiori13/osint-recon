@@ -112,3 +112,93 @@ pub fn print_table(title: &str, headers: &[&str], rows: &[Vec<String>]) {
     }
     println!("{} {} row(s)", "->".dimmed(), rows.len());
 }
+
+// ---------------------------------------------------------------------------
+// JSONL mode (`--stdout`): one JSON object per result row on stdout, so the
+// tool composes with jq and other Unix utilities (subfinder-style).
+// ---------------------------------------------------------------------------
+
+/// Sanitize a column header into a stable JSONL object key
+/// (`"Name / Path"` → `name_path`).
+fn header_key(header: &str) -> String {
+    let mut key = String::new();
+    let mut prev_sep = false;
+    for c in header.chars().flat_map(char::to_lowercase) {
+        if c.is_ascii_alphanumeric() {
+            key.push(c);
+            prev_sep = false;
+        } else if !prev_sep && !key.is_empty() {
+            key.push('_');
+            prev_sep = true;
+        }
+    }
+    while key.ends_with('_') {
+        key.pop();
+    }
+    key
+}
+
+/// Build the JSONL object for one result row.
+pub fn row_to_json(module: &str, headers: &[&str], row: &[String]) -> serde_json::Value {
+    let mut obj = serde_json::Map::new();
+    obj.insert("module".to_string(), serde_json::json!(module));
+    for (h, v) in headers.iter().zip(row.iter()) {
+        obj.insert(header_key(h), serde_json::json!(v));
+    }
+    serde_json::Value::Object(obj)
+}
+
+/// Print each result row as one JSON object per line (JSONL) on stdout.
+pub fn print_jsonl(out: &ModuleOutput) {
+    let module = out
+        .json
+        .get("module")
+        .and_then(|m| m.as_str())
+        .unwrap_or(out.name);
+    for row in &out.rows {
+        println!("{}", row_to_json(module, &out.headers, row));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn header_keys_are_sanitized() {
+        assert_eq!(header_key("Type"), "type");
+        assert_eq!(header_key("Name / Path"), "name_path");
+        assert_eq!(header_key("Owner / Repo / Stars"), "owner_repo_stars");
+        assert_eq!(header_key("AS Name"), "as_name");
+        assert_eq!(header_key("CC"), "cc");
+        assert_eq!(header_key("  expiring: x"), "expiring_x");
+    }
+
+    #[test]
+    fn row_to_json_includes_module_and_fields() {
+        let obj = row_to_json(
+            "dns",
+            &["Type", "Record"],
+            &["A".to_string(), "example.com -> 1.2.3.4".to_string()],
+        );
+        assert_eq!(obj["module"], "dns");
+        assert_eq!(obj["type"], "A");
+        assert_eq!(obj["record"], "example.com -> 1.2.3.4");
+        // Serializes as a single line (valid JSONL).
+        let line = serde_json::to_string(&obj).expect("serialize");
+        assert!(!line.contains('\n'));
+        let parsed: serde_json::Value = serde_json::from_str(&line).expect("valid JSON");
+        assert_eq!(parsed, obj);
+    }
+
+    #[test]
+    fn row_to_json_tolerates_short_rows() {
+        let obj = row_to_json(
+            "subdomain",
+            &["Subdomain", "Extra"],
+            &["a.example.com".to_string()],
+        );
+        assert_eq!(obj["subdomain"], "a.example.com");
+        assert!(obj.get("extra").is_none());
+    }
+}

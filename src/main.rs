@@ -52,6 +52,11 @@ struct Cli {
     #[arg(long, global = true, value_name = "FILE")]
     csv: Option<PathBuf>,
 
+    /// Emit results as JSONL on stdout (one JSON object per result) for
+    /// composability with jq and other tools. Banner and logs go to stderr.
+    #[arg(long, global = true)]
+    stdout: bool,
+
     /// Suppress the authorization banner.
     #[arg(short, long, global = true)]
     quiet: bool,
@@ -61,67 +66,74 @@ struct Cli {
 enum Commands {
     /// Passive subdomain enumeration (crt.sh, hackertarget).
     Subdomain {
-        /// Target domain (e.g. example.com).
+        /// Target domain (e.g. example.com, or '-' to read domains from stdin).
         domain: String,
     },
     /// DNS records via DNS-over-HTTPS (A, AAAA, MX, NS, TXT).
     Dns {
-        /// Target domain (e.g. example.com).
+        /// Target domain (e.g. example.com, or '-' to read domains from stdin).
         domain: String,
     },
     /// Technology fingerprinting from headers and public HTML.
     Tech {
-        /// Target domain (e.g. example.com).
+        /// Target domain (e.g. example.com, or '-' to read domains from stdin).
         domain: String,
     },
     /// Email harvesting from the domain's public pages (authorized use only).
     Email {
-        /// Target domain (e.g. example.com).
+        /// Target domain (e.g. example.com, or '-' to read domains from stdin).
         domain: String,
     },
     /// Metadata extraction from publicly linked PDF documents.
     Metadata {
-        /// Target domain (e.g. example.com).
+        /// Target domain (e.g. example.com, or '-' to read domains from stdin).
         domain: String,
     },
     /// ASN & netblock enumeration (Team Cymru DNS whois over DoH).
     Asn {
-        /// Target domain or IPv4 address (e.g. example.com or 93.184.215.14).
+        /// Target domain or IPv4 (e.g. example.com, or '-' to read targets from stdin).
         target: String,
     },
     /// Certificate transparency history summary (crt.sh).
     Ct {
-        /// Target domain (e.g. example.com).
+        /// Target domain (e.g. example.com, or '-' to read domains from stdin).
         domain: String,
     },
     /// GitHub dorking: public exposure search via the GitHub REST API.
     Ghdork {
-        /// Target domain (e.g. example.com).
+        /// Target domain (e.g. example.com, or '-' to read domains from stdin).
         domain: String,
     },
     /// Run all modules against the target.
     Full {
-        /// Target domain (e.g. example.com).
+        /// Target domain (e.g. example.com, or '-' to read domains from stdin).
         domain: String,
     },
 }
 
-/// Print the mandatory authorization banner.
-fn banner() {
-    println!(
-        "{}",
+/// Print the mandatory authorization banner (stdout normally, stderr when
+/// `--stdout` mode must keep stdout clean for JSONL).
+fn banner(to_stderr: bool) {
+    let lines = [
         "osint-recon — passive OSINT reconnaissance framework"
             .bold()
             .cyan()
-    );
-    println!(
-        "{}",
-        "For authorized security assessments only.".bold().yellow()
-    );
-    println!(
-        "{}",
-        "Passive techniques only: no scanning, no brute force, no credential testing.".dimmed()
-    );
+            .to_string(),
+        "For authorized security assessments only."
+            .bold()
+            .yellow()
+            .to_string(),
+        "Passive techniques only: no scanning, no brute force, no credential testing."
+            .dimmed()
+            .to_string(),
+    ];
+    for line in lines {
+        if to_stderr {
+            eprintln!("{line}");
+        } else {
+            println!("{line}");
+        }
+    }
 }
 
 /// Validate that a target looks like a bare domain (not a URL or IP+port).
@@ -143,10 +155,98 @@ fn normalize_domain(raw: &str) -> Result<String> {
     Ok(d)
 }
 
-/// Render results to the console and export files.
+/// Resolve the target argument: a literal value, or `-` to read one target
+/// per line from stdin (blank lines and `#` comments are skipped).
+fn resolve_targets(arg: &str) -> Result<Vec<String>> {
+    if arg != "-" {
+        return Ok(vec![arg.to_string()]);
+    }
+    use std::io::Read as _;
+    let mut buf = String::new();
+    std::io::stdin()
+        .read_to_string(&mut buf)
+        .context("reading targets from stdin")?;
+    let targets: Vec<String> = buf
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+        .map(str::to_string)
+        .collect();
+    if targets.is_empty() {
+        anyhow::bail!("no targets on stdin (expected one domain per line)");
+    }
+    Ok(targets)
+}
+
+/// Resolve and normalize domain targets. In batch mode (stdin), invalid
+/// lines are skipped with a warning instead of aborting the whole run.
+fn domains(arg: &str) -> Result<Vec<String>> {
+    let raw = resolve_targets(arg)?;
+    let single = raw.len() == 1;
+    let mut out = Vec::new();
+    for r in raw {
+        match normalize_domain(&r) {
+            Ok(d) => out.push(d),
+            Err(e) if single => return Err(e),
+            Err(e) => {
+                eprintln!("{} skipping invalid target {r:?}: {e:#}", "[warn]".yellow());
+            }
+        }
+    }
+    if out.is_empty() {
+        anyhow::bail!("no valid targets");
+    }
+    Ok(out)
+}
+
+/// Resolve ASN targets (bare IPv4 allowed in addition to domains).
+fn asn_targets(arg: &str) -> Result<Vec<String>> {
+    let raw = resolve_targets(arg)?;
+    let single = raw.len() == 1;
+    let mut out = Vec::new();
+    for r in raw {
+        let t = r.trim().trim_end_matches('/').to_lowercase();
+        let normalized = if t.parse::<std::net::Ipv4Addr>().is_ok() {
+            Ok(t)
+        } else {
+            normalize_domain(&t)
+        };
+        match normalized {
+            Ok(t) => out.push(t),
+            Err(e) if single => return Err(e),
+            Err(e) => {
+                eprintln!("{} skipping invalid target {r:?}: {e:#}", "[warn]".yellow());
+            }
+        }
+    }
+    if out.is_empty() {
+        anyhow::bail!("no valid targets");
+    }
+    Ok(out)
+}
+
+/// Render results (table or JSONL) and export files.
 fn report(cli: &Cli, outputs: &[ModuleOutput]) -> Result<()> {
-    for out in outputs {
-        output::print_table(out.name, &out.headers, &out.rows);
+    if cli.stdout {
+        // JSONL mode: machine-readable stdout, humans/logs on stderr.
+        for out in outputs {
+            output::print_jsonl(out);
+        }
+    } else {
+        let multi = outputs.len() > 1;
+        for out in outputs {
+            if multi {
+                // Label each block when several targets were processed.
+                let target = out
+                    .json
+                    .get("domain")
+                    .or_else(|| out.json.get("target"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                println!("{} {}", "==>".bold().magenta(), target.bold());
+            }
+            output::print_table(out.name, &out.headers, &out.rows);
+        }
     }
 
     if let Some(path) = &cli.json {
@@ -160,7 +260,7 @@ fn report(cli: &Cli, outputs: &[ModuleOutput]) -> Result<()> {
             })
         };
         output::write_json(path, &bundle)?;
-        println!(
+        eprintln!(
             "{} JSON results written to {}",
             "[ok]".green(),
             path.display()
@@ -168,15 +268,38 @@ fn report(cli: &Cli, outputs: &[ModuleOutput]) -> Result<()> {
     }
 
     if let Some(path) = &cli.csv {
-        if outputs.len() > 1 {
+        let same_headers = outputs.windows(2).all(|w| w[0].headers == w[1].headers);
+        if outputs.len() > 1 && !same_headers {
             eprintln!(
-                "{} CSV export supports one module at a time; skipping for `full` (use per-module runs or --json)",
+                "{} CSV export needs matching table shapes; skipping for `full` (use per-module runs or --json)",
                 "[warn]".yellow()
             );
         } else {
-            let out = &outputs[0];
-            output::write_csv(path, &out.headers, &out.rows)?;
-            println!(
+            // Batch runs (stdin) concatenate rows with a leading domain column.
+            let (headers, rows) = if outputs.len() > 1 {
+                let mut headers = vec!["domain"];
+                headers.extend_from_slice(&outputs[0].headers);
+                let mut rows = Vec::new();
+                for out in outputs {
+                    let target = out
+                        .json
+                        .get("domain")
+                        .or_else(|| out.json.get("target"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    for row in &out.rows {
+                        let mut r = vec![target.clone()];
+                        r.extend(row.iter().cloned());
+                        rows.push(r);
+                    }
+                }
+                (headers, rows)
+            } else {
+                (outputs[0].headers.clone(), outputs[0].rows.clone())
+            };
+            output::write_csv(path, &headers, &rows)?;
+            eprintln!(
                 "{} CSV results written to {}",
                 "[ok]".green(),
                 path.display()
@@ -190,63 +313,60 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     if !cli.quiet {
-        banner();
+        banner(cli.stdout);
     }
 
     let client = http::HttpClient::new(cli.timeout, cli.rate, cli.retries)
         .context("initializing HTTP client")?;
 
     let outputs: Vec<ModuleOutput> = match &cli.command {
-        Commands::Subdomain { domain } => {
-            let d = normalize_domain(domain)?;
-            vec![modules::subdomains::run(&client, &d)]
-        }
-        Commands::Dns { domain } => {
-            let d = normalize_domain(domain)?;
-            vec![modules::dns_records::run(&client, &d)]
-        }
-        Commands::Tech { domain } => {
-            let d = normalize_domain(domain)?;
-            vec![modules::tech_fingerprint::run(&client, &d)]
-        }
-        Commands::Email { domain } => {
-            let d = normalize_domain(domain)?;
-            vec![modules::emails::run(&client, &d)]
-        }
-        Commands::Metadata { domain } => {
-            let d = normalize_domain(domain)?;
-            vec![modules::doc_metadata::run(&client, &d)]
-        }
-        Commands::Asn { target } => {
-            let t = target.trim().trim_end_matches('/').to_lowercase();
-            // Accept a bare IPv4 address directly; otherwise validate as domain.
-            let t = if t.parse::<std::net::Ipv4Addr>().is_ok() {
-                t
-            } else {
-                normalize_domain(&t)?
-            };
-            vec![modules::asn::run(&client, &t)]
-        }
-        Commands::Ct { domain } => {
-            let d = normalize_domain(domain)?;
-            vec![modules::ct_history::run(&client, &d)]
-        }
-        Commands::Ghdork { domain } => {
-            let d = normalize_domain(domain)?;
-            vec![modules::github_dorks::run(&client, &d)]
-        }
+        Commands::Subdomain { domain } => domains(domain)?
+            .iter()
+            .map(|d| modules::subdomains::run(&client, d))
+            .collect(),
+        Commands::Dns { domain } => domains(domain)?
+            .iter()
+            .map(|d| modules::dns_records::run(&client, d))
+            .collect(),
+        Commands::Tech { domain } => domains(domain)?
+            .iter()
+            .map(|d| modules::tech_fingerprint::run(&client, d))
+            .collect(),
+        Commands::Email { domain } => domains(domain)?
+            .iter()
+            .map(|d| modules::emails::run(&client, d))
+            .collect(),
+        Commands::Metadata { domain } => domains(domain)?
+            .iter()
+            .map(|d| modules::doc_metadata::run(&client, d))
+            .collect(),
+        Commands::Asn { target } => asn_targets(target)?
+            .iter()
+            .map(|t| modules::asn::run(&client, t))
+            .collect(),
+        Commands::Ct { domain } => domains(domain)?
+            .iter()
+            .map(|d| modules::ct_history::run(&client, d))
+            .collect(),
+        Commands::Ghdork { domain } => domains(domain)?
+            .iter()
+            .map(|d| modules::github_dorks::run(&client, d))
+            .collect(),
         Commands::Full { domain } => {
-            let d = normalize_domain(domain)?;
-            vec![
-                modules::subdomains::run(&client, &d),
-                modules::dns_records::run(&client, &d),
-                modules::asn::run(&client, &d),
-                modules::ct_history::run(&client, &d),
-                modules::github_dorks::run(&client, &d),
-                modules::tech_fingerprint::run(&client, &d),
-                modules::emails::run(&client, &d),
-                modules::doc_metadata::run(&client, &d),
-            ]
+            let mut all = Vec::new();
+            for d in domains(domain)? {
+                all.extend([
+                    modules::subdomains::run(&client, &d),
+                    modules::dns_records::run(&client, &d),
+                    modules::asn::run(&client, &d),
+                    modules::ct_history::run(&client, &d),
+                    modules::github_dorks::run(&client, &d),
+                    modules::tech_fingerprint::run(&client, &d),
+                    modules::emails::run(&client, &d),
+                    modules::doc_metadata::run(&client, &d),
+                ]);
+            }
+            all
         }
     };
 

@@ -7,6 +7,10 @@
 [![Rust](https://img.shields.io/badge/rust-1.95%2B-orange?logo=rust)](https://www.rust-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+<p align="center">
+  <img src="docs/assets/demo.gif" alt="osint-recon demo — dns and asn modules against example.com" width="700">
+</p>
+
 > **⚠️ DISCLAIMER — FOR AUTHORIZED SECURITY ASSESSMENTS ONLY**
 >
 > This tool is intended for security research, education, and red team
@@ -95,6 +99,12 @@ OSINT_RECON_GITHUB_TOKEN=ghp_... osint-recon ghdork example.com
 # Everything at once, exported
 osint-recon full example.com --json output/full.json
 osint-recon dns example.com --csv output/dns.csv
+
+# Composable output: JSONL on stdout, one object per result
+osint-recon dns example.com --stdout | jq -r 'select(.type=="A") | .record'
+
+# Batch targets from stdin (one domain per line, '#' comments allowed)
+cat domains.txt | osint-recon dns - --stdout | jq .
 ```
 
 Global options:
@@ -106,7 +116,11 @@ Global options:
 | `--retries <n>` | `2` | Retries per request after the first attempt |
 | `--json <file>` | — | Export results as JSON |
 | `--csv <file>` | — | Export results as CSV (single-module runs) |
+| `--stdout` | — | Emit JSONL (one JSON object per result) on stdout; banner/logs move to stderr |
 | `-q, --quiet` | — | Suppress the authorization banner |
+
+Prebuilt binaries for Windows, Linux and macOS (plus sha256 checksums) are
+attached to every [GitHub Release](https://github.com/JMarchiori13/osint-recon/releases).
 
 ## Modules & ATT&CK mapping
 

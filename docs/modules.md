@@ -5,6 +5,17 @@ shares the global HTTP client (rate limit, timeout, retries, UA rotation),
 and returns both a structured JSON payload and flat table rows used for the
 console and CSV export.
 
+## Composability (all modules)
+
+- **`--stdout`** — results stream as JSONL (one JSON object per result row)
+  on stdout, so the tool pipes cleanly into `jq` and friends; the banner and
+  all logs move to stderr. Object shape: `{"module": <name>, <column>: <value>, ...}`
+  with keys derived from the table headers (`"Name / Path"` → `name_path`).
+- **stdin targets** — pass `-` as the target to read one domain per line
+  from stdin (`cat domains.txt | osint-recon dns -`); blank lines and `#`
+  comments are skipped, invalid lines are warned about and skipped, and each
+  target is processed sequentially under the shared rate limiter.
+
 ## `subdomain` — passive subdomain enumeration
 
 | | |
