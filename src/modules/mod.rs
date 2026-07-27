@@ -5,6 +5,7 @@
 //! No port scanning, no brute forcing, no credential testing.
 
 pub mod asn;
+pub mod br;
 pub mod crtsh;
 pub mod ct_history;
 pub mod dns_records;

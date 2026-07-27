@@ -71,6 +71,45 @@ console and CSV export.
 | Output fields | `repositories[]`, `users[]`, `code_findings[]`, `total_hits{}` (per-endpoint GitHub `total_count`), `code_dorks_run[]`, `token_tier`, `errors[]` |
 | Limitations | Unauthenticated search rate limit is strict (~10 req/min) — 403/429 responses are caught and warned with the reset time from `X-RateLimit-Reset`. Common documentation domains (e.g. `example.com`) produce heavy noise in code search; triage findings against the engagement scope. Results are leads for the report — never validate exposed secrets. The token is read from the environment only, never logged or written to exports. |
 
+## `br` — Brazilian context (CNPJ, CEP, dork pack)
+
+> **LGPD (Lei 13.709/2018) scope note:** `br` handles **company and address
+> data only**. CNPJ records are public business data published by Receita
+> Federal; CEP data is public addressing information. The module does **not**
+> query or handle personal data (CPF) — personal-data harvesting is out of
+> scope for the whole framework. Partner names appear in the public company
+> record; handle them under the engagement's data-handling rules.
+>
+> **Why `br` is not in `full`:** its targets are Brazilian documents and
+> postal codes, not domains — mixing it into the domain-driven `full` run
+> would be meaningless. It stays a standalone context module.
+
+### `br cnpj <CNPJ>` — company lookup (T1591)
+
+| | |
+|---|---|
+| Sources | BrasilAPI `/api/cnpj/v1/<cnpj>` (keyless, generous), ReceitaWS `/v1/cnpj/<cnpj>` fallback (keyless, **3 req/min** — enforced with a per-source 20 s throttle) |
+| Validation | Accepts with/without punctuation. Classic numeric format: full mod-11 check-digit validation (rejects typos, repeated digits). **New alphanumeric format (valid since July 2026)**: 12 alphanumeric base chars + 2 numeric check digits — format-validated. Invalid input is rejected with a clear error before any network call. |
+| Output fields | razão social, nome fantasia, CNAE (code + description), situação cadastral, abertura, capital social, full address, partners (sócios) with qualification, source used |
+| Limitations | ReceitaWS's 3 req/min makes it unsuitable for batch; BrasilAPI occasionally 404s on very new registrations. Sócios lists can be long (public record). |
+
+### `br cep <CEP>` — address resolution (T1591)
+
+| | |
+|---|---|
+| Sources | BrasilAPI `/api/cep/v2/<cep>` (coordinates when available), ViaCEP `/ws/<cep>/json/` fallback |
+| Output fields | street, district, city, state, latitude/longitude (when the v2 source provides them), source used |
+| Limitations | Coordinates are present for only part of the CEP base; rows without data are hidden. |
+
+### `br dorks <target>` — Brazilian dork pack (T1593)
+
+| | |
+|---|---|
+| Sources | **None — no scraping.** Generates ready-to-open Google/Shodan search URLs for manual use; executing the search is a human decision. |
+| Pack | Lives in the `BR_DORKS` const in `src/modules/br/dorks.rs`: SQL dumps on .br, DB files with passwords, exposed backups on .com.br, gov.br spreadsheets, mil.br PDFs, exposed PowerBI (`intext:"brasil"`), WhatsApp/Telegram group indexation, Shodan `country:"BR"`. |
+| Target interpolation | Dorks marked `supports_target` get the target string prepended (e.g. `exemplo.com.br site:br ext:sql ...`). |
+| Limitations | Google may rate-limit/captcha heavy manual dorking; results always require human triage. |
+
 ## `tech` — technology fingerprinting
 
 | | |

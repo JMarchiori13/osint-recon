@@ -43,6 +43,7 @@ and CSV.
 - 🗺️ **ASN & netblock enumeration** via Team Cymru DNS whois over DoH — IP→ASN, AS name, announced prefix
 - 📜 **Certificate transparency history** — aggregated crt.sh view: issuers, validity windows, certs expiring in <30 days
 - 🐙 **GitHub dorking** — repos/users mentioning the domain keyless; optional token tier adds code-search dorks (`.env`, configs, `password`/`api_key`)
+- 🇧🇷 **Brazilian context** — CNPJ company lookup (BrasilAPI + ReceitaWS), CEP address resolution, and a Brazilian OSINT dork pack (Google/Shodan URLs for manual use). Public business data only; no personal data (CPF) per LGPD
 - 🧬 **Technology fingerprinting** from response headers, meta generator tags and CMS/framework signatures
 - 📧 **Email harvesting** from pages the organization itself publishes, labeled for authorized phishing-simulation planning
 - 📄 **PDF metadata extraction** (author, creator tool, dates) from publicly linked documents
@@ -98,6 +99,11 @@ osint-recon ct example.com
 osint-recon ghdork example.com
 OSINT_RECON_GITHUB_TOKEN=ghp_... osint-recon ghdork example.com
 
+# Brazilian context (public business data only — no CPF/personal data)
+osint-recon br cnpj 00.000.000/0001-91   # company lookup (BrasilAPI/ReceitaWS)
+osint-recon br cep 01310-100             # address resolution (BrasilAPI/ViaCEP)
+osint-recon br dorks exemplo.com.br      # BR dork pack: Google/Shodan URLs
+
 # Everything at once, exported
 osint-recon full example.com --json output/full.json
 osint-recon dns example.com --csv output/dns.csv
@@ -133,6 +139,7 @@ attached to every [GitHub Release](https://github.com/JMarchiori13/osint-recon/r
 | `asn` | Team Cymru DNS whois (via DoH) | T1590.001 / T1590.005 — Domain Properties / IP Addresses |
 | `ct` | crt.sh certificate transparency logs | T1596.003 — Search Open Technical Databases: Digital Certificates |
 | `ghdork` | GitHub REST search API (keyless + optional token tier) | T1593.003 — Search Open Websites/Domains: Code Repositories |
+| `br cnpj` / `br cep` / `br dorks` | BrasilAPI, ReceitaWS, ViaCEP (keyless); dork URL generation | T1591 — Gather Victim Org Information, T1593 |
 | `tech` | homepage headers + HTML signatures | T1592.002 — Software |
 | `email` | public pages (bounded link following) | T1589.002 — Email Addresses, T1593.002 |
 | `metadata` | publicly linked PDFs (lopdf Info dict) | T1593.002 — Search Open Websites/Domains |
@@ -161,6 +168,7 @@ methodology and OPSEC notes. Safe practice targets are documented in
 - [x] ASN & netblock enumeration (passive, via public BGP/RIR data) — shipped in v0.2.0
 - [x] Certificate transparency history & expiring-cert monitoring — shipped in v0.2.0
 - [x] GitHub dorking module (code-search aggregators, keyless where possible) — shipped in v0.3.0
+- [x] Brazilian context module (CNPJ, CEP, BR dork pack) — shipped in v0.5.0
 - [ ] Shodan API integration (key-based, passive host profiles)
 
 ## Project structure
@@ -171,7 +179,7 @@ osint-recon/
 ├── .github/workflows/
 │   └── ci.yml                  # fmt / clippy -D warnings / test / release build
 ├── src/
-│   ├── main.rs                 # clap CLI: subdomain/dns/asn/ct/ghdork/tech/email/metadata/full
+│   ├── main.rs                 # clap CLI: subdomain/dns/asn/ct/ghdork/tech/email/metadata/br/full
 │   ├── http.rs                 # shared client: UA rotation, timeout, retry, 1 req/s throttle
 │   ├── output.rs               # JSON + CSV export, formatted console tables
 │   └── modules/
@@ -182,6 +190,7 @@ osint-recon/
 │       ├── asn.rs              # Team Cymru DNS whois over DoH (IP→ASN, prefix, AS name)
 │       ├── ct_history.rs       # crt.sh aggregate: issuers, validity, expiring certs
 │       ├── github_dorks.rs     # GitHub REST search: repos/users keyless, code dorks w/ token
+│       ├── br/                 # Brazilian context: CNPJ (BrasilAPI/ReceitaWS), CEP, BR dork pack
 │       ├── tech_fingerprint.rs # headers + meta generator + CMS/framework signatures
 │       ├── emails.rs           # regex harvest from the domain's public pages
 │       └── doc_metadata.rs     # public PDF links → Info-dict metadata via lopdf

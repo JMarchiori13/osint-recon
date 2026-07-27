@@ -104,10 +104,35 @@ enum Commands {
         /// Target domain (e.g. example.com, or '-' to read domains from stdin).
         domain: String,
     },
+    /// Brazilian context: CNPJ company lookup, CEP resolution, BR dork pack.
+    Br {
+        #[command(subcommand)]
+        command: BrCommands,
+    },
     /// Run all modules against the target.
     Full {
         /// Target domain (e.g. example.com, or '-' to read domains from stdin).
         domain: String,
+    },
+}
+
+/// Subcommands of the Brazilian context module (`br`).
+#[derive(Subcommand)]
+enum BrCommands {
+    /// Brazilian company lookup by CNPJ (BrasilAPI, ReceitaWS fallback).
+    Cnpj {
+        /// CNPJ with or without punctuation (e.g. 00.000.000/0001-91).
+        cnpj: String,
+    },
+    /// Brazilian postal code (CEP) address resolution (BrasilAPI, ViaCEP fallback).
+    Cep {
+        /// CEP with or without punctuation (e.g. 01310-100).
+        cep: String,
+    },
+    /// Brazilian OSINT dork pack: ready-to-open Google/Shodan URLs (manual use).
+    Dorks {
+        /// Target string interpolated into dorks that support it (e.g. exemplo.com.br).
+        target: String,
     },
 }
 
@@ -352,6 +377,19 @@ fn main() -> Result<()> {
             .iter()
             .map(|d| modules::github_dorks::run(&client, d))
             .collect(),
+        // `br` is intentionally NOT part of `full`: it targets Brazilian
+        // documents/CEPs, not domains (see docs/modules.md).
+        Commands::Br { command } => match command {
+            BrCommands::Cnpj { cnpj } => {
+                let c = modules::br::cnpj::normalize_cnpj(cnpj)?;
+                vec![modules::br::cnpj::run(&client, &c)]
+            }
+            BrCommands::Cep { cep } => {
+                let c = modules::br::cep::normalize_cep(cep)?;
+                vec![modules::br::cep::run(&client, &c)]
+            }
+            BrCommands::Dorks { target } => vec![modules::br::dorks::run(target)],
+        },
         Commands::Full { domain } => {
             let mut all = Vec::new();
             for d in domains(domain)? {

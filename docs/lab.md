@@ -15,6 +15,7 @@ osint-recon subdomain example.com
 osint-recon asn example.com
 osint-recon ct example.com
 osint-recon ghdork example.com
+osint-recon br dorks example.com
 osint-recon email example.com
 osint-recon metadata example.com
 osint-recon full example.com --json output/example.json
@@ -44,6 +45,21 @@ This validates every module end-to-end with zero third-party impact.
 Public practice targets designed for security training (e.g. local
 OWASP Juice Shop instances) are suitable for the `tech` module. Check each
 environment's terms before pointing anything at hosted instances.
+
+## 4. Brazilian context (`br`)
+
+Public, well-known test values:
+
+```sh
+osint-recon br cnpj 00.000.000/0001-91   # Banco do Brasil S.A. — classic public test CNPJ
+osint-recon br cep 01310-100             # Av. Paulista, São Paulo
+osint-recon br dorks exemplo.com.br      # no network — generates manual search URLs
+```
+
+These are public business/address records (no personal data), so they are
+safe to query. Do not use `br` to look up CNPJs of organizations you are
+not assessing beyond what the engagement requires, and never extend the
+tool toward personal data (CPF) — see the LGPD note in `docs/modules.md`.
 
 ## What NOT to do
 
