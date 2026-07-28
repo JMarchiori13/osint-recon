@@ -25,10 +25,10 @@
 
 ## Overview
 
-`osint-recon` automates the **passive** portion of MITRE ATT&CK
+`osint-recon` automates the passive portion of MITRE ATT&CK
 Reconnaissance (TA0043): certificate transparency, DNS-over-HTTPS, keyless
 public aggregators, and plain GET requests to already-public pages. It
-deliberately contains **no active capabilities** — no port scanning, no
+deliberately contains no active capabilities: no port scanning, no
 directory or subdomain brute forcing, no credential testing.
 
 Every module shares a single HTTP client with polite rate limiting
@@ -38,12 +38,12 @@ and CSV.
 
 ## Features
 
-- 🔎 **Subdomain enumeration** from certificate transparency (crt.sh) and DNS-history aggregators (hackertarget) — keyless, passive
+- 🔎 **Subdomain enumeration** from certificate transparency (crt.sh) and DNS-history aggregators (hackertarget), keyless and passive
 - 🌐 **DNS records** (A, AAAA, MX, NS, TXT) via DNS-over-HTTPS (dns.google) without touching the target's nameservers
-- 🗺️ **ASN & netblock enumeration** via Team Cymru DNS whois over DoH — IP→ASN, AS name, announced prefix
-- 📜 **Certificate transparency history** — aggregated crt.sh view: issuers, validity windows, certs expiring in <30 days
-- 🐙 **GitHub dorking** — repos/users mentioning the domain keyless; optional token tier adds code-search dorks (`.env`, configs, `password`/`api_key`)
-- 🇧🇷 **Brazilian context** — CNPJ company lookup (BrasilAPI + ReceitaWS), CEP address resolution, and a Brazilian OSINT dork pack (Google/Shodan URLs for manual use). Public business data only; no personal data (CPF) per LGPD
+- 🗺️ **ASN & netblock enumeration** via Team Cymru DNS whois over DoH: IP→ASN, AS name, announced prefix
+- 📜 **Certificate transparency history** from crt.sh: issuers, validity windows, certs expiring in <30 days
+- 🐙 **GitHub dorking**: repos/users mentioning the domain keyless; optional token tier adds code-search dorks (`.env`, configs, `password`/`api_key`)
+- 🇧🇷 **Brazilian context**: CNPJ company lookup (BrasilAPI + ReceitaWS), CEP address resolution, and a Brazilian OSINT dork pack (Google/Shodan URLs for manual use). Public business data only; no personal data (CPF) per LGPD
 - 🧬 **Technology fingerprinting** from response headers, meta generator tags and CMS/framework signatures
 - 📧 **Email harvesting** from pages the organization itself publishes, labeled for authorized phishing-simulation planning
 - 📄 **PDF metadata extraction** (author, creator tool, dates) from publicly linked documents
@@ -122,10 +122,10 @@ Global options:
 | `--rate <rps>` | `1.0` | Politeness rate limit (requests/second) |
 | `--timeout <s>` | `15` | Per-request timeout (seconds) |
 | `--retries <n>` | `2` | Retries per request after the first attempt |
-| `--json <file>` | — | Export results as JSON |
-| `--csv <file>` | — | Export results as CSV (single-module runs) |
-| `--stdout` | — | Emit JSONL (one JSON object per result) on stdout; banner/logs move to stderr |
-| `-q, --quiet` | — | Suppress the authorization banner |
+| `--json <file>` | none | Export results as JSON |
+| `--csv <file>` | none | Export results as CSV (single-module runs) |
+| `--stdout` | none | Emit JSONL (one JSON object per result) on stdout; banner/logs move to stderr |
+| `-q, --quiet` | none | Suppress the authorization banner |
 
 Prebuilt binaries for Windows, Linux and macOS (plus sha256 checksums) are
 attached to every [GitHub Release](https://github.com/JMarchiori13/osint-recon/releases).
@@ -134,15 +134,15 @@ attached to every [GitHub Release](https://github.com/JMarchiori13/osint-recon/r
 
 | Module | Sources | ATT&CK (passive only) |
 |--------|---------|------------------------|
-| `subdomain` | crt.sh, hackertarget hostsearch | T1590.001 — Domain Properties |
-| `dns` | dns.google DoH JSON API | T1590.002 — DNS |
-| `asn` | Team Cymru DNS whois (via DoH) | T1590.001 / T1590.005 — Domain Properties / IP Addresses |
-| `ct` | crt.sh certificate transparency logs | T1596.003 — Search Open Technical Databases: Digital Certificates |
-| `ghdork` | GitHub REST search API (keyless + optional token tier) | T1593.003 — Search Open Websites/Domains: Code Repositories |
-| `br cnpj` / `br cep` / `br dorks` | BrasilAPI, ReceitaWS, ViaCEP (keyless); dork URL generation | T1591 — Gather Victim Org Information, T1593 |
-| `tech` | homepage headers + HTML signatures | T1592.002 — Software |
-| `email` | public pages (bounded link following) | T1589.002 — Email Addresses, T1593.002 |
-| `metadata` | publicly linked PDFs (lopdf Info dict) | T1593.002 — Search Open Websites/Domains |
+| `subdomain` | crt.sh, hackertarget hostsearch | T1590.001 (Domain Properties) |
+| `dns` | dns.google DoH JSON API | T1590.002 (DNS) |
+| `asn` | Team Cymru DNS whois (via DoH) | T1590.001 / T1590.005 (Domain Properties / IP Addresses) |
+| `ct` | crt.sh certificate transparency logs | T1596.003 (Search Open Technical Databases: Digital Certificates) |
+| `ghdork` | GitHub REST search API (keyless + optional token tier) | T1593.003 (Search Open Websites/Domains: Code Repositories) |
+| `br cnpj` / `br cep` / `br dorks` | BrasilAPI, ReceitaWS, ViaCEP (keyless); dork URL generation | T1591 (Gather Victim Org Information), T1593 |
+| `tech` | homepage headers + HTML signatures | T1592.002 (Software) |
+| `email` | public pages (bounded link following) | T1589.002 (Email Addresses), T1593.002 |
+| `metadata` | publicly linked PDFs (lopdf Info dict) | T1593.002 (Search Open Websites/Domains) |
 
 See [docs/modules.md](docs/modules.md) for per-module output fields and
 limitations, and [docs/methodology.md](docs/methodology.md) for the full
@@ -165,10 +165,10 @@ methodology and OPSEC notes. Safe practice targets are documented in
 
 ## Roadmap
 
-- [x] ASN & netblock enumeration (passive, via public BGP/RIR data) — shipped in v0.2.0
-- [x] Certificate transparency history & expiring-cert monitoring — shipped in v0.2.0
-- [x] GitHub dorking module (code-search aggregators, keyless where possible) — shipped in v0.3.0
-- [x] Brazilian context module (CNPJ, CEP, BR dork pack) — shipped in v0.5.0
+- [x] ASN & netblock enumeration (passive, via public BGP/RIR data), shipped in v0.2.0
+- [x] Certificate transparency history & expiring-cert monitoring, shipped in v0.2.0
+- [x] GitHub dorking module (code-search aggregators, keyless where possible), shipped in v0.3.0
+- [x] Brazilian context module (CNPJ, CEP, BR dork pack), shipped in v0.5.0
 - [ ] Shodan API integration (key-based, passive host profiles)
 
 ## Project structure
@@ -214,11 +214,11 @@ cargo test --release
 cargo build --release
 ```
 
-Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). The
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). The
 **passive-only scope is non-negotiable**: PRs adding scanning, brute forcing
 or credential testing will be rejected.
 
 ## License
 
-[MIT](LICENSE) © 2026 JMarchiori13 — see the research-use notice in the
+[MIT](LICENSE) © 2026 JMarchiori13. See the research-use notice in the
 LICENSE file and the disclaimer above.
